@@ -1,0 +1,41 @@
+name: Deploy to JCloud
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 가져오기
+        uses: actions/checkout@v4
+
+      - name: 빌드 준비 (React가 있으면 빌드, 아직 HTML만 있으면 파일 그대로 준비)
+        run: |
+          mkdir -p deploy_out
+          if [ -f "package.json" ]; then
+            npm install
+            npm run build
+            if [ -d "dist" ]; then
+              cp -r dist/* deploy_out/
+            elif [ -d "build" ]; then
+              cp -r build/* deploy_out/
+            fi
+          else
+            rsync -av --exclude='.git' --exclude='.github' --exclude='deploy_out' ./ deploy_out/
+          fi
+
+      - name: JCloud 서버로 파일 전송
+        env:
+          SSH_KEY: ${{ secrets.JCLOUD_SSH_KEY }}
+          HOST: ${{ secrets.JCLOUD_HOST }}
+          PORT: ${{ secrets.JCLOUD_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          printf "%s\n" "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p "$PORT" -H "$HOST" >> ~/.ssh/known_hosts
+          ssh -p "$PORT" ubuntu@"$HOST" "rm -rf /var/www/mureview/*"
+          scp -P "$PORT" -r ./deploy_out/* ubuntu@"$HOST":/var/www/mureview/
