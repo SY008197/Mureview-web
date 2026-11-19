@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { authService } from "./services/authService";
 import { reviewRepository } from "./repositories/reviewRepository";
+import "./App.css";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -15,6 +16,12 @@ export default function App() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [searchError, setSearchError] = useState("");
 
   useEffect(() => {
     const unsubscribe = authService.subscribeAuth((currentUser) => {
@@ -39,6 +46,32 @@ export default function App() {
   useEffect(() => {
     fetchReviews();
   }, []);
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    const query = searchTerm.trim();
+    if (!query) return;
+
+    try {
+      setIsSearching(true);
+      setSearchError("");
+      setHasSearched(true);
+
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "검색 요청에 실패했습니다.");
+      }
+
+      setSearchResults(data.results || []);
+    } catch (err) {
+      setSearchError("노래 검색 중 오류가 발생했습니다: " + err.message);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const handleCreateReview = async (e) => {
     e.preventDefault();
@@ -137,6 +170,94 @@ export default function App() {
           <div className="alert alert-danger">{errorMsg}</div>
         </div>
       )}
+
+      <section className="music-search-section">
+        <div className="container">
+          <div className="music-search-header">
+            <span>Music Search</span>
+            <h2>노래 · 아티스트 검색</h2>
+          </div>
+
+          <form className="music-search-form" onSubmit={handleSearch}>
+            <input
+              type="text"
+              className="music-search-input"
+              placeholder="노래 제목이나 아티스트명을 입력하세요"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="music-search-button"
+              aria-label="검색"
+              disabled={isSearching}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </button>
+          </form>
+
+          {searchError && (
+            <p className="music-search-status error">{searchError}</p>
+          )}
+
+          {isSearching && (
+            <p className="music-search-status">노래 정보를 검색하는 중입니다...</p>
+          )}
+
+          {!isSearching && hasSearched && !searchError && searchResults.length === 0 && (
+            <p className="music-search-status">검색 결과가 없습니다. 다른 제목이나 아티스트명으로 검색해 보세요.</p>
+          )}
+
+          {!isSearching && searchResults.length > 0 && (
+            <div className="music-results-grid">
+              {searchResults.map((track) => (
+                <div className="music-result-card" key={track.id}>
+                  <img
+                    className="music-result-cover"
+                    src={track.artworkUrl}
+                    alt={track.trackName}
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="music-result-info">
+                    <h4 className="music-result-title" title={track.trackName}>
+                      {track.trackName}
+                    </h4>
+                    <p className="music-result-artist" title={track.artistName}>
+                      {track.artistName}
+                    </p>
+                    <p className="music-result-album" title={track.albumName}>
+                      {track.albumName}
+                    </p>
+                    {track.musicUrl && (
+                      <a
+                        className="music-ytm-link"
+                        style={{ backgroundColor: "#4883ff" }}
+                        href={track.musicUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        음원 정보 보기
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       {user && (
         <section className="container" style={{ marginTop: "30px", marginBottom: "20px" }}>
