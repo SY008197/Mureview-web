@@ -12,7 +12,8 @@
   "dependencies": {
     "firebase": "^13.4.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "ytmusic-api": "^6.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
