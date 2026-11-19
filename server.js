@@ -15,6 +15,47 @@ function cleanText(text) {
     .trim();
 }
 
+async function searchMelon(query) {
+  const url = `https://www.melon.com/search/keyword/index.json?query=${encodeURIComponent(query)}`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      Referer: "https://www.melon.com/",
+      Accept: "application/json, text/javascript, */*; q=0.01",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Melon 요청 실패 (${res.status})`);
+  }
+
+  const rawText = (await res.text()).trim();
+  const jsonText = rawText.startsWith("{")
+    ? rawText
+    : rawText.replace(/^[^(]+\(/, "").replace(/\);?$/, "");
+  const data = JSON.parse(jsonText);
+  const songs = data?.SONGCONTENTS || [];
+
+  return songs.slice(0, 12).map((item) => {
+    const rawImg = item.ALBUMIMG || "";
+    const artworkUrl = rawImg
+      ? rawImg.replace(/\/melon\/resize\/\d+/, "/melon/resize/500")
+      : "/img/featured_item_1.jpg";
+
+    return {
+      id: `melon-${item.SONGID}`,
+      trackName: cleanText(item.SONGNAME),
+      artistName: cleanText(item.ARTISTNAME),
+      albumName: cleanText(item.ALBUMNAME),
+      artworkUrl,
+      musicUrl: item.SONGID
+        ? `https://www.melon.com/song/detail.htm?songId=${item.SONGID}`
+        : "",
+    };
+  });
+}
+
 async function searchFlo(query) {
   const url = `https://www.music-flo.com/api/search/v2/search?searchType=TRACK&sortType=ACCURACY&keyword=${encodeURIComponent(
     query
@@ -63,47 +104,6 @@ async function searchFlo(query) {
   });
 }
 
-async function searchMelon(query) {
-  const url = `https://www.melon.com/search/keyword/index.json?query=${encodeURIComponent(query)}`;
-
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": USER_AGENT,
-      Referer: "https://www.melon.com/",
-      Accept: "application/json, text/javascript, */*; q=0.01",
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Melon 요청 실패 (${res.status})`);
-  }
-
-  const rawText = (await res.text()).trim();
-  const jsonText = rawText.startsWith("{")
-    ? rawText
-    : rawText.replace(/^[^(]+\(/, "").replace(/\);?$/, "");
-  const data = JSON.parse(jsonText);
-  const songs = data?.SONGCONTENTS || [];
-
-  return songs.slice(0, 12).map((item) => {
-    const rawImg = item.ALBUMIMG || "";
-    const artworkUrl = rawImg
-      ? rawImg.replace(/\/melon\/resize\/\d+/, "/melon/resize/500")
-      : "/img/featured_item_1.jpg";
-
-    return {
-      id: `melon-${item.SONGID}`,
-      trackName: cleanText(item.SONGNAME),
-      artistName: cleanText(item.ARTISTNAME),
-      albumName: cleanText(item.ALBUMNAME),
-      artworkUrl,
-      musicUrl: item.SONGID
-        ? `https://www.melon.com/song/detail.htm?songId=${item.SONGID}`
-        : "",
-    };
-  });
-}
-
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -119,15 +119,15 @@ const server = http.createServer(async (req, res) => {
       let tracks = [];
 
       try {
-        tracks = await searchFlo(q);
-        console.log(`[search:flo] "${q}" -> ${tracks.length}건`);
-      } catch (floErr) {
-        console.warn("[search:flo 실패]", floErr.message);
+        tracks = await searchMelon(q);
+        console.log(`[search:melon] "${q}" -> ${tracks.length}건`);
+      } catch (melonErr) {
+        console.warn("[search:melon 실패]", melonErr.message);
       }
 
       if (tracks.length === 0) {
-        tracks = await searchMelon(q);
-        console.log(`[search:melon] "${q}" -> ${tracks.length}건`);
+        tracks = await searchFlo(q);
+        console.log(`[search:flo] "${q}" -> ${tracks.length}건`);
       }
 
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
