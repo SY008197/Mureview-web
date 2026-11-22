@@ -5,6 +5,36 @@ import { reviewRepository } from "./repositories/reviewRepository";
 import SettingsPage from "./pages/settingsPage";
 import "./App.css";
 
+// Firebase 로그인/회원가입 에러 코드별 사용자 안내 메시지
+const AUTH_ERROR_MESSAGES = {
+  // 공통
+  "auth/invalid-email": "올바른 이메일 형식으로 입력해주세요. (예: name@example.com)",
+  "auth/missing-email": "이메일을 입력해주세요.",
+  "auth/missing-password": "비밀번호를 입력해주세요.",
+  "auth/too-many-requests": "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
+  "auth/network-request-failed": "네트워크 연결을 확인한 뒤 다시 시도해주세요.",
+  "auth/operation-not-allowed": "현재 이메일 로그인 기능이 비활성화되어 있습니다.",
+
+  // 로그인
+  "auth/invalid-credential": "이메일 또는 비밀번호가 올바르지 않습니다.",
+  "auth/invalid-login-credentials": "이메일 또는 비밀번호가 올바르지 않습니다.",
+  "auth/user-not-found": "가입되지 않은 이메일입니다.",
+  "auth/wrong-password": "비밀번호가 일치하지 않습니다.",
+  "auth/user-disabled": "비활성화된 계정입니다. 관리자에게 문의해주세요.",
+
+  // 회원가입
+  "auth/email-already-in-use": "이미 사용 중인 이메일입니다. 로그인을 시도해주세요.",
+  "auth/weak-password": "비밀번호는 6자 이상으로 설정해주세요.",
+  "auth/password-does-not-meet-requirements": "비밀번호 보안 조건을 충족하지 않습니다.",
+};
+
+function getAuthErrorMessage(error, fallbackMessage) {
+  if (error && error.code && AUTH_ERROR_MESSAGES[error.code]) {
+    return AUTH_ERROR_MESSAGES[error.code];
+  }
+  return fallbackMessage;
+}
+
 // Mureview 메인 애플리케이션 컴포넌트
 export default function App() {
   // 인증 및 화면 전환 상태 ("home" | "settings")
@@ -45,14 +75,67 @@ export default function App() {
       setUser(currentUser);
       accountSettingsManager.syncUser(currentUser);
 
-      // 로그아웃 시 설정 페이지에 머물지 않도록 홈으로 복귀
-      if (!currentUser) {
+      // 로그인/로그아웃 상태가 바뀌면 이전 에러 메시지와 입력값을 깔끔하게 초기화
+      setErrorMsg("");
+
+      if (currentUser) {
+        setEmail("");
+        setPassword("");
+      } else {
         setActiveView("home");
       }
     });
 
     return () => unsubscribe();
   }, []);
+
+  // 화면 전환 시 남아 있는 에러 메시지 초기화
+  const handleChangeView = (nextView) => {
+    setErrorMsg("");
+    setActiveView(nextView);
+  };
+
+  // 로그인 처리
+  const handleLogin = async () => {
+    setErrorMsg("");
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      setErrorMsg("이메일을 입력해주세요.");
+      return;
+    }
+    if (!password) {
+      setErrorMsg("비밀번호를 입력해주세요.");
+      return;
+    }
+
+    try {
+      await authService.login(trimmedEmail, password);
+    } catch (err) {
+      setErrorMsg(getAuthErrorMessage(err, "로그인에 실패했습니다. 다시 시도해주세요."));
+    }
+  };
+
+  // 회원가입 처리
+  const handleSignUp = async () => {
+    setErrorMsg("");
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      setErrorMsg("이메일을 입력해주세요.");
+      return;
+    }
+    if (!password) {
+      setErrorMsg("비밀번호를 입력해주세요.");
+      return;
+    }
+
+    try {
+      await authService.signUp(trimmedEmail, password, "");
+    } catch (err) {
+      setErrorMsg(getAuthErrorMessage(err, "회원가입에 실패했습니다. 다시 시도해주세요."));
+    }
+  };
 
   // 전체 리뷰 목록 조회
   const fetchReviews = async () => {
@@ -174,7 +257,7 @@ export default function App() {
         >
           <h3
             style={{ margin: 0, cursor: "pointer" }}
-            onClick={() => setActiveView("home")}
+            onClick={() => handleChangeView("home")}
           >
             Mureview
           </h3>
@@ -188,9 +271,7 @@ export default function App() {
                   type="button"
                   className="btn"
                   onClick={() =>
-                    setActiveView((prev) =>
-                      prev === "settings" ? "home" : "settings"
-                    )
+                    handleChangeView(activeView === "settings" ? "home" : "settings")
                   }
                 >
                   {activeView === "settings" ? "홈으로" : "설정"}
@@ -217,26 +298,10 @@ export default function App() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() =>
-                    authService
-                      .login(email, password)
-                      .catch((e) => setErrorMsg("로그인 실패: " + e.message))
-                  }
-                >
+                <button type="button" className="btn" onClick={handleLogin}>
                   로그인
                 </button>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() =>
-                    authService
-                      .signUp(email, password, "")
-                      .catch((e) => setErrorMsg("회원가입 실패: " + e.message))
-                  }
-                >
+                <button type="button" className="btn" onClick={handleSignUp}>
                   회원가입
                 </button>
               </div>
@@ -248,13 +313,37 @@ export default function App() {
       {/* 전역 에러 알림 영역 */}
       {errorMsg && (
         <div className="container" style={{ marginTop: "16px" }}>
-          <div className="alert alert-danger">{errorMsg}</div>
+          <div
+            className="alert alert-danger"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span>{errorMsg}</span>
+            <button
+              type="button"
+              aria-label="알림 닫기"
+              onClick={() => setErrorMsg("")}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: "18px",
+                lineHeight: 1,
+                cursor: "pointer",
+                color: "inherit",
+              }}
+            >
+              &times;
+            </button>
+          </div>
         </div>
       )}
 
       {/* 현재 뷰 상태에 따라 설정 페이지 또는 메인 홈 렌더링 */}
       {user && activeView === "settings" ? (
-        <SettingsPage onBack={() => setActiveView("home")} />
+        <SettingsPage onBack={() => handleChangeView("home")} />
       ) : (
         <>
           {/* 음원 검색 섹션 */}
