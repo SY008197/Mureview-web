@@ -1,3 +1,36 @@
+/* =========================================
+   0. 전역 레이아웃 & 스크롤바 틀어짐 방지
+   ========================================= */
+html {
+  /* 스크롤바가 생기거나 사라질 때 좌우 레이아웃이 밀리지 않도록 공간 고정 */
+  scrollbar-gutter: stable;
+}
+
+#root > div {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =========================================
+   1. 상단 헤더 정렬 및 버튼 너비 고정
+   ========================================= */
+/* Bootstrap .container의 가상 요소가 flex 아이템으로 잡혀 로고가 밀리는 현상 방지 */
+#header .container::before,
+#header .container::after {
+  content: none;
+  display: none;
+}
+
+/* '설정' / '홈으로' 글자 수 차이로 버튼과 환영 문구가 흔들리지 않도록 너비 고정 */
+#header .btn {
+  min-width: 76px;
+  text-align: center;
+}
+
+/* =========================================
+   2. 음원 검색 섹션 스타일 (기존 유지)
+   ========================================= */
 .music-search-section {
   background-color: #f4f4f4;
   padding: 60px 0;
@@ -161,4 +194,119 @@
   background-color: #d9002b;
   color: #ffffff;
   text-decoration: none;
+}
+
+/* =========================================
+   3. 개인 설정 페이지 (settingsPage.jsx) 스타일
+   ========================================= */
+.settings-section {
+  flex: 1;
+  background-color: #f4f4f4;
+  padding: 48px 0 72px;
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.settings-eyebrow {
+  font-size: 14px;
+  color: #4883ff;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.settings-header h2 {
+  font-size: 26px;
+  font-weight: 700;
+  color: #232323;
+  margin: 0;
+}
+
+/* 프로필 카드와 비밀번호 변경 카드를 나란히 배치 */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.settings-card {
+  background-color: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  padding: 28px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.settings-card h3 {
+  font-size: 19px;
+  font-weight: 700;
+  color: #232323;
+  margin: 0 0 8px;
+}
+
+.settings-description {
+  font-size: 14px;
+  color: #666666;
+  margin: 0 0 20px;
+}
+
+.settings-form-group {
+  margin-bottom: 16px;
+}
+
+.settings-form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 6px;
+}
+
+.settings-feedback {
+  margin-top: 12px;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+
+.settings-submit-btn {
+  background-color: #4883ff;
+  border-color: #4883ff;
+  padding: 8px 18px;
+  font-weight: 600;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.settings-submit-btn:hover,
+.settings-submit-btn:focus {
+  background-color: #346be0;
+  border-color: #346be0;
+}
+
+.settings-submit-btn:disabled {
+  background-color: #9cb8f8;
+  border-color: #9cb8f8;
+  cursor: not-allowed;
+}
+
+.settings-empty {
+  margin-bottom: 16px;
+  color: #555555;
+}
+
+/* 모바일 화면 여백 보정 */
+@media (max-width: 576px) {
+  .settings-section {
+    padding: 32px 0 48px;
+  }
+
+  .settings-card {
+    padding: 20px;
+  }
 }
