@@ -2,8 +2,10 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { authService } from "./services/authService";
 import { accountSettingsManager } from "./services/accountSettingsManager";
 import { reviewRepository } from "./repositories/reviewRepository";
+import { reviewSubject, ReviewActivityLogger } from "./patterns/reviewObserver";
 import SettingsPage from "./pages/settingsPage";
 import "./App.css";
+
 
 // Firebase 로그인/회원가입 에러 코드별 사용자 안내 메시지
 const AUTH_ERROR_MESSAGES = {
@@ -87,6 +89,34 @@ export default function App() {
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // 옵저버 패턴 알림 및 활동 로그 상태 + 구독
+  const [toastMessage, setToastMessage] = useState("");
+  const [activityLogs, setActivityLogs] = useState([]);
+
+  useEffect(() => {
+    const toastObserver = {
+      update(event) {
+        if (event.type === "REVIEW_CREATED") {
+          setToastMessage(`"${event.payload.songTitle}" 평가가 등록되었습니다.`);
+        } else if (event.type === "REVIEW_DELETED") {
+          setToastMessage("선택한 리뷰가 삭제되었습니다.");
+        }
+      },
+    };
+
+    const loggerObserver = new ReviewActivityLogger((logText) => {
+      setActivityLogs((prev) => [logText, ...prev].slice(0, 5));
+    });
+
+    const unsubToast = reviewSubject.subscribe(toastObserver);
+    const unsubLogger = reviewSubject.subscribe(loggerObserver);
+
+    return () => {
+      unsubToast();
+      unsubLogger();
+    };
   }, []);
 
   // 화면 전환 시 남아 있는 에러 메시지 초기화
@@ -215,6 +245,12 @@ export default function App() {
         comment: comment.trim(),
       });
 
+      reviewSubject.notifyReviewCreated({
+        authorName,
+        songTitle: songTitle.trim(),
+        rating: Number(rating),
+      });
+
       setSongTitle("");
       setArtist("");
       setRating(5);
@@ -230,6 +266,9 @@ export default function App() {
     try {
       setErrorMsg("");
       await reviewRepository.deleteReview(reviewId);
+
+      reviewSubject.notifyReviewDeleted(reviewId);
+
       await fetchReviews();
     } catch {
       setErrorMsg("삭제 권한이 없거나 요청이 거절되었습니다.");
@@ -337,6 +376,35 @@ export default function App() {
             >
               &times;
             </button>
+          </div>
+        </div>
+      )}
+      
+      {/* 옵저버 패턴 알림 및 최근 활동 로그 */}
+      {toastMessage && (
+        <div className="container" style={{ marginTop: "12px" }}>
+          <div className="alert alert-info" style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>{toastMessage}</span>
+            <button
+              type="button"
+              onClick={() => setToastMessage("")}
+              style={{ background: "none", border: "none", cursor: "pointer" }}
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activityLogs.length > 0 && (
+        <div className="container" style={{ marginTop: "8px" }}>
+          <div style={{ padding: "10px 14px", background: "#f8f9fa", borderRadius: "6px", fontSize: "13px" }}>
+            <strong>최근 리뷰 활동 로그 (Observer)</strong>
+            <ul style={{ margin: "6px 0 0", paddingLeft: "18px" }}>
+              {activityLogs.map((log, idx) => (
+                <li key={idx}>{log}</li>
+              ))}
+            </ul>
           </div>
         </div>
       )}
