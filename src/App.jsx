@@ -262,12 +262,16 @@ export default function App() {
   };
 
   // 내 리뷰 삭제 처리
-  const handleDeleteReview = async (reviewId) => {
+  // 내 리뷰 삭제 처리 (reviewId -> item으로 변경)
+  const handleDeleteReview = async (item) => {
     try {
       setErrorMsg("");
-      await reviewRepository.deleteReview(reviewId);
+      await reviewRepository.deleteReview(item.id);
 
-      reviewSubject.notifyReviewDeleted(reviewId);
+      reviewSubject.notifyReviewDeleted({
+        id: item.id,
+        songTitle: item.songTitle,
+      });
 
       await fetchReviews();
     } catch {
@@ -628,7 +632,7 @@ export default function App() {
                                     href="#delete"
                                     onClick={(e) => {
                                       e.preventDefault();
-                                      handleDeleteReview(item.id);
+                                      handleDeleteReview(item);
                                     }}
                                   >
                                     내 리뷰 삭제하기

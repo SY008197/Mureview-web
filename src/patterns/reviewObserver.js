@@ -33,10 +33,10 @@ class ReviewSubject extends Subject {
     });
   }
 
-  notifyReviewDeleted(reviewId) {
+  notifyReviewDeleted(reviewInfo) {
     this.notify({
       type: "REVIEW_DELETED",
-      payload: { id: reviewId },
+      payload: reviewInfo,
       timestamp: new Date().toISOString(),
     });
   }
@@ -56,7 +56,7 @@ export class ReviewActivityLogger {
         `[등록] ${event.payload.authorName}님이 "${event.payload.songTitle}" (★${event.payload.rating}) 평가`
       );
     } else if (event.type === "REVIEW_DELETED") {
-      this.onLog(`[삭제] 리뷰(${event.payload.id})가 삭제되었습니다.`);
+      this.onLog(`[삭제] "${event.payload.songTitle}" 리뷰가 삭제되었습니다.`);
     }
   }
 }
