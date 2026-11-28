@@ -274,7 +274,7 @@ export default function App() {
                     handleChangeView(activeView === "settings" ? "home" : "settings")
                   }
                 >
-                  {activeView === "settings" ? "홈으로" : "설정"}
+                  {activeView === "settings" ? "홈으로" : "마이 페이지"}
                 </button>
                 <button
                   type="button"
@@ -341,9 +341,13 @@ export default function App() {
         </div>
       )}
 
-      {/* 현재 뷰 상태에 따라 설정 페이지 또는 메인 홈 렌더링 */}
+      {/* 현재 뷰 상태에 따라 마이 페이지 또는 메인 홈 렌더링 */}
       {user && activeView === "settings" ? (
-        <SettingsPage onBack={() => handleChangeView("home")} />
+        <SettingsPage
+          onBack={() => handleChangeView("home")}
+          reviews={reviews}
+          onDeleteReview={handleDeleteReview}
+        />
       ) : (
         <>
           {/* 음원 검색 섹션 */}
