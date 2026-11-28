@@ -15,6 +15,10 @@ function cleanText(text) {
     .trim();
 }
 
+/**
+ * 멜론(Melon) 단일 기준 음원 검색
+ * 모든 트랙의 고유 식별자를 `melon-${SONGID}`로 고정합니다.
+ */
 async function searchMelon(query) {
   const url = `https://www.melon.com/search/keyword/index.json?query=${encodeURIComponent(query)}`;
 
@@ -37,71 +41,24 @@ async function searchMelon(query) {
   const data = JSON.parse(jsonText);
   const songs = data?.SONGCONTENTS || [];
 
-  return songs.slice(0, 12).map((item) => {
-    const rawImg = item.ALBUMIMG || "";
-    const artworkUrl = rawImg
-      ? rawImg.replace(/\/melon\/resize\/\d+/, "/melon/resize/500")
-      : "/img/featured_item_1.jpg";
+  return songs
+    .filter((item) => item && item.SONGID)
+    .slice(0, 12)
+    .map((item) => {
+      const rawImg = item.ALBUMIMG || "";
+      const artworkUrl = rawImg
+        ? rawImg.replace(/\/melon\/resize\/\d+/, "/melon/resize/500")
+        : "/img/featured_item_1.jpg";
 
-    return {
-      id: `melon-${item.SONGID}`,
-      trackName: cleanText(item.SONGNAME),
-      artistName: cleanText(item.ARTISTNAME),
-      albumName: cleanText(item.ALBUMNAME),
-      artworkUrl,
-      musicUrl: item.SONGID
-        ? `https://www.melon.com/song/detail.htm?songId=${item.SONGID}`
-        : "",
-    };
-  });
-}
-
-async function searchFlo(query) {
-  const url = `https://www.music-flo.com/api/search/v2/search?searchType=TRACK&sortType=ACCURACY&keyword=${encodeURIComponent(
-    query
-  )}&size=12&page=1`;
-
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": USER_AGENT,
-      Referer: "https://www.music-flo.com/",
-      Accept: "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`FLO 요청 실패 (${res.status})`);
-  }
-
-  const data = await res.json();
-  const sections = data?.data?.list || [];
-  const rawItems = sections.flatMap((section) =>
-    Array.isArray(section.list) ? section.list : section.name ? [section] : []
-  );
-
-  return rawItems.slice(0, 12).map((item) => {
-    const artistName =
-      Array.isArray(item.artistList) && item.artistList.length > 0
-        ? item.artistList.map((a) => a.name).join(", ")
-        : item.representationArtist?.name || "";
-
-    const imgList = item.album?.imgList || [];
-    const bestImg = imgList.reduce(
-      (best, cur) => ((cur.size || 0) > (best.size || 0) ? cur : best),
-      { size: 0, url: "" }
-    );
-
-    return {
-      id: `flo-${item.id}`,
-      trackName: cleanText(item.name),
-      artistName: cleanText(artistName),
-      albumName: cleanText(item.album?.title),
-      artworkUrl: bestImg.url || "/img/featured_item_1.jpg",
-      musicUrl: item.album?.id
-        ? `https://www.music-flo.com/detail/album/${item.album.id}/albumtrack`
-        : "",
-    };
-  });
+      return {
+        id: `melon-${item.SONGID}`,
+        trackName: cleanText(item.SONGNAME),
+        artistName: cleanText(item.ARTISTNAME),
+        albumName: cleanText(item.ALBUMNAME),
+        artworkUrl,
+        musicUrl: `https://www.melon.com/song/detail.htm?songId=${item.SONGID}`,
+      };
+    });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -116,26 +73,19 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      let tracks = [];
-
-      try {
-        tracks = await searchMelon(q);
-        console.log(`[search:melon] "${q}" -> ${tracks.length}건`);
-      } catch (melonErr) {
-        console.warn("[search:melon 실패]", melonErr.message);
-      }
-
-      if (tracks.length === 0) {
-        tracks = await searchFlo(q);
-        console.log(`[search:flo] "${q}" -> ${tracks.length}건`);
-      }
+      const tracks = await searchMelon(q);
+      console.log(`[search:melon] "${q}" -> ${tracks.length}건`);
 
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ results: tracks }));
     } catch (err) {
-      console.error("[search error]", err);
-      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ error: err.message }));
+      console.error("[search:melon error]", err);
+      res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(
+        JSON.stringify({
+          error: "멜론 음원 검색 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+        })
+      );
     }
     return;
   }
