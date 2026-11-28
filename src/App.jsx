@@ -1,28 +1,24 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { authService } from "./services/authService";
 import { accountSettingsManager } from "./services/accountSettingsManager";
-import { reviewRepository } from "./repositories/reviewRepository";
+import { musicReviewFacade } from "./patterns/musicReviewFacade";
 import SettingsPage from "./pages/settingsPage";
+import TrackReviewModal from "./components/TrackReviewModal";
 import "./App.css";
 
 // Firebase 로그인/회원가입 에러 코드별 사용자 안내 메시지
 const AUTH_ERROR_MESSAGES = {
-  // 공통
   "auth/invalid-email": "올바른 이메일 형식으로 입력해주세요. (예: name@example.com)",
   "auth/missing-email": "이메일을 입력해주세요.",
   "auth/missing-password": "비밀번호를 입력해주세요.",
   "auth/too-many-requests": "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
   "auth/network-request-failed": "네트워크 연결을 확인한 뒤 다시 시도해주세요.",
   "auth/operation-not-allowed": "현재 이메일 로그인 기능이 비활성화되어 있습니다.",
-
-  // 로그인
   "auth/invalid-credential": "이메일 또는 비밀번호가 올바르지 않습니다.",
   "auth/invalid-login-credentials": "이메일 또는 비밀번호가 올바르지 않습니다.",
   "auth/user-not-found": "가입되지 않은 이메일입니다.",
   "auth/wrong-password": "비밀번호가 일치하지 않습니다.",
   "auth/user-disabled": "비활성화된 계정입니다. 관리자에게 문의해주세요.",
-
-  // 회원가입
   "auth/email-already-in-use": "이미 사용 중인 이메일입니다. 로그인을 시도해주세요.",
   "auth/weak-password": "비밀번호는 6자 이상으로 설정해주세요.",
   "auth/password-does-not-meet-requirements": "비밀번호 보안 조건을 충족하지 않습니다.",
@@ -35,47 +31,39 @@ function getAuthErrorMessage(error, fallbackMessage) {
   return fallbackMessage;
 }
 
-// Mureview 메인 애플리케이션 컴포넌트
+function formatRatingScore(score) {
+  const numeric = Number(score || 0);
+  return Number.isInteger(numeric) ? `${numeric}` : numeric.toFixed(1);
+}
+
+// Mureview 메인 애플리케이션 컴포넌트 (MusicReviewFacade의 클라이언트)
 export default function App() {
-  // 인증 및 화면 전환 상태 ("home" | "settings")
   const [user, setUser] = useState(null);
   const [activeView, setActiveView] = useState("home");
 
-  // 싱글톤 매니저의 사용자 프로필 상태를 React와 동기화
   const profile = useSyncExternalStore(
     accountSettingsManager.subscribe,
     accountSettingsManager.getSnapshot
   );
 
-  // 리뷰 목록 및 로딩/에러 상태
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // 새 리뷰 작성 폼 상태
-  const [songTitle, setSongTitle] = useState("");
-  const [artist, setArtist] = useState("");
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
-
-  // 로그인/회원가입 입력 상태
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // 음원 검색 상태
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [selectedTrack, setSelectedTrack] = useState(null);
 
-  // Firebase 인증 상태 구독 및 싱글톤 매니저 동기화
   useEffect(() => {
     const unsubscribe = authService.subscribeAuth((currentUser) => {
       setUser(currentUser);
       accountSettingsManager.syncUser(currentUser);
-
-      // 로그인/로그아웃 상태가 바뀌면 이전 에러 메시지와 입력값을 깔끔하게 초기화
       setErrorMsg("");
 
       if (currentUser) {
@@ -89,13 +77,11 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 화면 전환 시 남아 있는 에러 메시지 초기화
   const handleChangeView = (nextView) => {
     setErrorMsg("");
     setActiveView(nextView);
   };
 
-  // 로그인 처리
   const handleLogin = async () => {
     setErrorMsg("");
     const trimmedEmail = email.trim();
@@ -116,7 +102,6 @@ export default function App() {
     }
   };
 
-  // 회원가입 처리
   const handleSignUp = async () => {
     setErrorMsg("");
     const trimmedEmail = email.trim();
@@ -137,12 +122,12 @@ export default function App() {
     }
   };
 
-  // 전체 리뷰 목록 조회
+  // Facade를 통해 전체 리뷰 조회
   const fetchReviews = async () => {
     try {
       setLoading(true);
       setErrorMsg("");
-      const data = await reviewRepository.getAllReviews();
+      const data = await musicReviewFacade.getAllReviews();
       setReviews(data);
     } catch (err) {
       setErrorMsg("리뷰 목록을 불러오지 못했습니다: " + err.message);
@@ -155,7 +140,7 @@ export default function App() {
     fetchReviews();
   }, []);
 
-  // 음원 검색 API 요청 처리
+  // Facade를 통해 멜론 검색 + 곡별 평점(미등록 곡 0점 초기화) 조회
   const handleSearch = async (e) => {
     e.preventDefault();
     const query = searchTerm.trim();
@@ -166,14 +151,11 @@ export default function App() {
       setSearchError("");
       setHasSearched(true);
 
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "검색 요청에 실패했습니다.");
-      }
-
-      setSearchResults(data.results || []);
+      const results = await musicReviewFacade.searchTracksWithRatings(
+        query,
+        reviews
+      );
+      setSearchResults(results);
     } catch (err) {
       setSearchError("노래 검색 중 오류가 발생했습니다: " + err.message);
       setSearchResults([]);
@@ -182,67 +164,57 @@ export default function App() {
     }
   };
 
-  // 새 노래 평가 등록 처리
-  const handleCreateReview = async (e) => {
-    e.preventDefault();
-    if (!user) {
-      setErrorMsg("로그인 후 노래 평가를 등록할 수 있습니다.");
-      return;
-    }
-    if (!songTitle.trim() || !artist.trim() || !comment.trim()) {
-      setErrorMsg("노래 제목, 가수, 감상평을 모두 입력해주세요.");
-      return;
-    }
-    if (rating < 1 || rating > 5) {
-      setErrorMsg("평점은 1점에서 5점 사이여야 합니다.");
-      return;
-    }
+  // 리뷰 등록/삭제 시 검색 결과 카드의 평점도 즉시 동기화
+  const searchResultsWithRatings = useMemo(
+    () => musicReviewFacade.attachRatingsToTracks(searchResults, reviews),
+    [searchResults, reviews]
+  );
 
-    // 싱글톤에 반영된 최신 닉네임을 우선 사용하여 작성자명 결정
-    const authorName =
-      (profile && profile.displayName) ||
-      user.displayName ||
-      user.email.split("@")[0];
-
-    try {
-      setErrorMsg("");
-      await reviewRepository.createReview({
-        ownerId: user.uid,
-        authorName,
-        songTitle: songTitle.trim(),
-        artist: artist.trim(),
-        rating: Number(rating),
-        comment: comment.trim(),
-      });
-
-      setSongTitle("");
-      setArtist("");
-      setRating(5);
-      setComment("");
-      await fetchReviews();
-    } catch (err) {
-      setErrorMsg("저장에 실패했습니다: " + err.message);
+  // 선택된 곡의 팝업용 리뷰 요약 정보 계산
+  const selectedTrackReviewSummary = useMemo(() => {
+    if (!selectedTrack) {
+      return {
+        reviews: [],
+        averageRating: 0,
+        reviewCount: 0,
+        hasUserReviewed: false,
+      };
     }
+    return musicReviewFacade.getTrackReviewSummary(
+      selectedTrack.id,
+      reviews,
+      user
+    );
+  }, [selectedTrack, reviews, user]);
+
+  // Facade를 통해 곡별 리뷰 등록 (내부에서 중복 차단 + Factory 객체 생성 + 저장 수행)
+  const handleSubmitTrackReview = async ({ track, rating, comment }) => {
+    setErrorMsg("");
+    const updatedReviews = await musicReviewFacade.submitTrackReview({
+      track,
+      user,
+      rating,
+      comment,
+    });
+    setReviews(updatedReviews);
   };
 
-  // 내 리뷰 삭제 처리
+  // Facade를 통해 리뷰 삭제
   const handleDeleteReview = async (reviewId) => {
     try {
       setErrorMsg("");
-      await reviewRepository.deleteReview(reviewId);
-      await fetchReviews();
+      const updatedReviews = await musicReviewFacade.deleteReview(reviewId);
+      setReviews(updatedReviews);
     } catch {
       setErrorMsg("삭제 권한이 없거나 요청이 거절되었습니다.");
     }
   };
 
-  // 헤더에 표시할 사용자 이름 (설정된 닉네임 우선, 없으면 이메일)
   const headerDisplayName =
     (profile && profile.displayName) || (user && user.email) || "";
 
   return (
     <div>
-      {/* 상단 네비게이션 헤더 */}
       <header
         id="header"
         style={{ padding: "20px 0", borderBottom: "1px solid #eee" }}
@@ -310,7 +282,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* 전역 에러 알림 영역 */}
       {errorMsg && (
         <div className="container" style={{ marginTop: "16px" }}>
           <div
@@ -335,13 +306,12 @@ export default function App() {
                 color: "inherit",
               }}
             >
-              &times;
+              ×
             </button>
           </div>
         </div>
       )}
 
-      {/* 현재 뷰 상태에 따라 마이 페이지 또는 메인 홈 렌더링 */}
       {user && activeView === "settings" ? (
         <SettingsPage
           onBack={() => handleChangeView("home")}
@@ -350,7 +320,6 @@ export default function App() {
         />
       ) : (
         <>
-          {/* 음원 검색 섹션 */}
           <section className="music-search-section">
             <div className="container">
               <div className="music-search-header">
@@ -401,16 +370,16 @@ export default function App() {
               {!isSearching &&
                 hasSearched &&
                 !searchError &&
-                searchResults.length === 0 && (
+                searchResultsWithRatings.length === 0 && (
                   <p className="music-search-status">
                     검색 결과가 없습니다. 다른 제목이나 아티스트명으로 검색해
                     보세요.
                   </p>
                 )}
 
-              {!isSearching && searchResults.length > 0 && (
+              {!isSearching && searchResultsWithRatings.length > 0 && (
                 <div className="music-results-grid">
-                  {searchResults.map((track) => (
+                  {searchResultsWithRatings.map((track) => (
                     <div className="music-result-card" key={track.id}>
                       <img
                         className="music-result-cover"
@@ -437,17 +406,51 @@ export default function App() {
                         >
                           {track.albumName}
                         </p>
-                        {track.musicUrl && (
-                          <a
-                            className="music-ytm-link"
-                            style={{ backgroundColor: "#4883ff" }}
-                            href={track.musicUrl}
-                            target="_blank"
-                            rel="noreferrer"
+
+                        <div className="music-result-rating">
+                          <span className="review-star-icon">★</span>
+                          <span className="music-result-rating-score">
+                            {formatRatingScore(track.averageRating)}점
+                          </span>
+                          <span className="music-result-rating-count">
+                            ({track.reviewCount})
+                          </span>
+                        </div>
+
+                        <div className="music-card-actions">
+                          {track.musicUrl && (
+                            <a
+                              className="music-ytm-link"
+                              style={{ backgroundColor: "#4883ff" }}
+                              href={track.musicUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              음원 정보 보기
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            className="music-review-btn"
+                            onClick={() => setSelectedTrack(track)}
                           >
-                            음원 정보 보기
-                          </a>
-                        )}
+                            <svg
+                              width="15"
+                              height="15"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                            </svg>
+                            <span>리뷰 작성</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -456,62 +459,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* 로그인 사용자용 새 노래 평가 등록 폼 */}
-          {user && (
-            <section
-              className="container"
-              style={{ marginTop: "30px", marginBottom: "20px" }}
-            >
-              <h4>새 노래 평가 등록</h4>
-              <form onSubmit={handleCreateReview} className="row">
-                <div className="col-md-3">
-                  <input
-                    className="form-control"
-                    placeholder="노래 제목"
-                    value={songTitle}
-                    onChange={(e) => setSongTitle(e.target.value)}
-                  />
-                </div>
-                <div className="col-md-3">
-                  <input
-                    className="form-control"
-                    placeholder="아티스트"
-                    value={artist}
-                    onChange={(e) => setArtist(e.target.value)}
-                  />
-                </div>
-                <div className="col-md-2">
-                  <select
-                    className="form-control"
-                    value={rating}
-                    onChange={(e) => setRating(Number(e.target.value))}
-                  >
-                    {[5, 4, 3, 2, 1].map((num) => (
-                      <option key={num} value={num}>
-                        ★ {num}점
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div
-                  className="col-md-4"
-                  style={{ display: "flex", gap: "8px" }}
-                >
-                  <input
-                    className="form-control"
-                    placeholder="한줄평을 입력하세요"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                  />
-                  <button type="submit" className="btn btn-primary">
-                    등록
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
-
-          {/* 최근 등록된 노래 평가 목록 */}
           <section className="featured-places" id="blog">
             <div className="container">
               <div className="section-heading">
@@ -525,7 +472,7 @@ export default function App() {
                 </p>
               ) : reviews.length === 0 ? (
                 <p style={{ textAlign: "center" }}>
-                  아직 등록된 노래 평가가 없습니다. 로그인 후 첫 평가를
+                  아직 등록된 노래 평가가 없습니다. 원하는 곡을 검색해 첫 평가를
                   남겨보세요!
                 </p>
               ) : (
@@ -535,8 +482,9 @@ export default function App() {
                       <div className="featured-item">
                         <div className="thumb">
                           <img
-                            src="/img/featured_item_1.jpg"
+                            src={item.artworkUrl || "/img/featured_item_1.jpg"}
                             alt={item.songTitle}
+                            referrerPolicy="no-referrer"
                           />
                           <div className="overlay-content">
                             <ul>
@@ -583,6 +531,18 @@ export default function App() {
           </section>
         </>
       )}
+
+      <TrackReviewModal
+        track={selectedTrack}
+        user={user}
+        trackReviews={selectedTrackReviewSummary.reviews}
+        averageRating={selectedTrackReviewSummary.averageRating}
+        reviewCount={selectedTrackReviewSummary.reviewCount}
+        hasUserReviewed={selectedTrackReviewSummary.hasUserReviewed}
+        onClose={() => setSelectedTrack(null)}
+        onSubmitReview={handleSubmitTrackReview}
+        onDeleteReview={handleDeleteReview}
+      />
     </div>
   );
 }

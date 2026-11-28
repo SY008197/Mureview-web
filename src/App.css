@@ -487,3 +487,331 @@ padding: 32px 0 48px;
 padding: 20px;
 }
 }
+
+/* =========================================
+검색 카드 평점 & 리뷰 작성 버튼
+========================================= */
+.music-result-rating {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.review-star-icon {
+  color: #f5a623;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.music-result-rating-score {
+  font-weight: 700;
+  color: #232323;
+}
+
+.music-result-rating-count {
+  font-size: 12px;
+  color: #777777;
+}
+
+.music-card-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.music-card-actions .music-ytm-link {
+  margin-top: 0;
+}
+
+.music-review-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #4883ff;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #4883ff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.music-review-btn:hover {
+  background-color: #edf3ff;
+  color: #2c62d6;
+}
+
+/* =========================================
+음원 리뷰 팝업 모달 (TrackReviewModal.jsx)
+========================================= */
+.review-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background-color: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.review-modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
+  padding: 24px 28px;
+}
+
+.review-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #ececec;
+}
+
+.review-modal-eyebrow {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4883ff;
+  margin-bottom: 2px;
+}
+
+.review-modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #232323;
+}
+
+.review-modal-close {
+  border: none;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  color: #777777;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.review-modal-close:hover {
+  color: #232323;
+}
+
+.review-modal-track {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 14px;
+  background-color: #f8f9fc;
+  border: 1px solid #e8ecf4;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.review-modal-cover {
+  width: 84px;
+  height: 84px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.review-modal-track-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.review-modal-track-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #232323;
+}
+
+.review-modal-track-artist {
+  margin: 0 0 2px;
+  font-size: 14px;
+  color: #4883ff;
+  font-weight: 500;
+}
+
+.review-modal-track-album {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #777777;
+}
+
+.review-modal-score-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background-color: #ffffff;
+  border: 1px solid #e4e7ec;
+  font-size: 13px;
+  color: #232323;
+}
+
+.review-modal-score-count {
+  color: #666666;
+  font-size: 12px;
+}
+
+.review-modal-form-section,
+.review-modal-list-section {
+  margin-bottom: 20px;
+}
+
+.review-modal-list-section {
+  margin-bottom: 0;
+}
+
+.review-modal-form-section h4,
+.review-modal-list-section h4 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #232323;
+  margin: 0 0 12px;
+}
+
+.review-modal-notice {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background-color: #f1f5ff;
+  border: 1px solid #d4e2ff;
+  color: #2c52a0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.review-modal-notice-warn {
+  background-color: #fff8e6;
+  border-color: #f5dfab;
+  color: #8a5a00;
+}
+
+.review-modal-form-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.review-modal-rating-select {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.review-modal-comment-input {
+  flex: 1;
+}
+
+.review-modal-submit-btn {
+  background-color: #4883ff;
+  border-color: #4883ff;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.review-modal-submit-btn:hover {
+  background-color: #346be0;
+  border-color: #346be0;
+}
+
+.review-modal-form-error {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #d93025;
+}
+
+.review-modal-empty {
+  text-align: center;
+  padding: 24px 12px;
+  margin: 0;
+  border-radius: 8px;
+  background-color: #f9fafb;
+  color: #666666;
+  font-size: 14px;
+}
+
+.review-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-modal-item {
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background-color: #ffffff;
+}
+
+.review-modal-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.review-modal-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333333;
+}
+
+.review-modal-item-rating {
+  color: #f5a623;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.review-modal-item-rating-num {
+  margin-left: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555555;
+}
+
+.review-modal-item-comment {
+  margin: 0;
+  font-size: 14px;
+  color: #444444;
+  line-height: 1.55;
+}
+
+.review-modal-item-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+@media (max-width: 576px) {
+  .review-modal {
+    padding: 20px 18px;
+  }
+
+  .review-modal-form-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .review-modal-rating-select {
+    width: 100%;
+  }
+}
