@@ -82,6 +82,17 @@ export default function App() {
     setActiveView(nextView);
   };
 
+  // Mureview 로고 클릭 시 검색 결과와 팝업을 초기화하고 홈 화면으로 이동
+  const handleGoHome = () => {
+    setErrorMsg("");
+    setActiveView("home");
+    setSearchTerm("");
+    setSearchResults([]);
+    setHasSearched(false);
+    setSearchError("");
+    setSelectedTrack(null);
+  };
+
   const handleLogin = async () => {
     setErrorMsg("");
     const trimmedEmail = email.trim();
@@ -229,7 +240,7 @@ export default function App() {
         >
           <h3
             style={{ margin: 0, cursor: "pointer" }}
-            onClick={() => handleChangeView("home")}
+            onClick={handleGoHome}
           >
             Mureview
           </h3>
@@ -459,76 +470,81 @@ export default function App() {
             </div>
           </section>
 
-          <section className="featured-places" id="blog">
-            <div className="container">
-              <div className="section-heading">
-                <span>Song Reviews</span>
-                <h2>최근 등록된 노래 평가</h2>
-              </div>
+          {/* 검색하지 않은 기본 홈 상태에서만 최근 등록된 노래 평가 표시 */}
+          {!hasSearched && (
+            <section className="featured-places" id="blog">
+              <div className="container">
+                <div className="section-heading">
+                  <span>Song Reviews</span>
+                  <h2>최근 등록된 노래 평가</h2>
+                </div>
 
-              {loading ? (
-                <p style={{ textAlign: "center" }}>
-                  데이터를 불러오는 중입니다...
-                </p>
-              ) : reviews.length === 0 ? (
-                <p style={{ textAlign: "center" }}>
-                  아직 등록된 노래 평가가 없습니다. 원하는 곡을 검색해 첫 평가를
-                  남겨보세요!
-                </p>
-              ) : (
-                <div className="row">
-                  {reviews.map((item) => (
-                    <div className="col-md-4 col-sm-6 col-xs-12" key={item.id}>
-                      <div className="featured-item">
-                        <div className="thumb">
-                          <img
-                            src={item.artworkUrl || "/img/featured_item_1.jpg"}
-                            alt={item.songTitle}
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="overlay-content">
-                            <ul>
-                              {Array.from({ length: item.rating }).map(
-                                (_, idx) => (
-                                  <li key={idx}>
-                                    <i className="fa fa-star"></i>
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          </div>
-                        </div>
-                        <div className="down-content">
-                          <h4>{item.songTitle}</h4>
-                          <span>
-                            {item.artist} · 작성자: {item.authorName}
-                          </span>
-                          <p>{item.comment}</p>
-                          {user && user.uid === item.ownerId && (
-                            <div className="row">
-                              <div className="col-md-12">
-                                <div className="text-button">
-                                  <a
-                                    href="#delete"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      handleDeleteReview(item.id);
-                                    }}
+                {loading ? (
+                  <p style={{ textAlign: "center" }}>
+                    데이터를 불러오는 중입니다...
+                  </p>
+                ) : reviews.length === 0 ? (
+                  <p style={{ textAlign: "center" }}>
+                    아직 등록된 노래 평가가 없습니다. 원하는 곡을 검색해 첫 평가를
+                    남겨보세요!
+                  </p>
+                ) : (
+                  <div className="row">
+                    {reviews.slice(0, 6).map((item) => (
+                      <div className="col-md-4 col-sm-6 col-xs-12" key={item.id}>
+                        <div className="featured-item">
+                          <div className="thumb">
+                            <img
+                              src={item.artworkUrl || "/img/featured_item_1.jpg"}
+                              alt={item.songTitle}
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="overlay-content">
+                              <div className="recent-review-stars" aria-label={`별점 ${item.rating}점`}>
+                                {Array.from({ length: item.rating }).map((_, idx) => (
+                                  <svg
+                                    key={idx}
+                                    className="recent-review-star"
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
                                   >
-                                    내 리뷰 삭제하기
-                                  </a>
-                                </div>
+                                    <path d="M12 2.6c.4 0 .77.22.95.58l2.53 5.13 5.66.82c.86.13 1.2 1.18.58 1.79l-4.1 3.99.97 5.64c.15.86-.75 1.51-1.52 1.1L12 18.99l-5.07 2.66c-.77.41-1.67-.24-1.52-1.1l.97-5.64-4.1-3.99c-.62-.61-.28-1.66.58-1.79l5.66-.82 2.53-5.13c.18-.36.55-.58.95-.58z" />
+                                  </svg>
+                                ))}
                               </div>
                             </div>
-                          )}
+                          </div>
+                          <div className="down-content">
+                            <h4>{item.songTitle}</h4>
+                            <span className="recent-review-artist">{item.artist}</span>
+                            <span className="recent-review-author">작성자: {item.authorName}</span>
+                            <p className="recent-review-comment">{item.comment}</p>
+                            {user && user.uid === item.ownerId && (
+                              <div className="row">
+                                <div className="col-md-12">
+                                  <div className="text-button">
+                                    <a
+                                      href="#delete"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        handleDeleteReview(item.id);
+                                      }}
+                                    >
+                                      내 리뷰 삭제하기
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
         </>
       )}
 
